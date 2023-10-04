@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html data-bs-theme="dark">
+<head>
+    <title>Ask {{voice}}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+          background: white;
+        }
+        #video-wrapper{
+          width: 400px;
+          height: 400px;
+          position: relative;
+        }
+        
+        #buttons{
+          display: none;
+        }
+        .audio-player {
+            margin-top: 20px;
+            margin-bottom: 40px;
+        }
+        #ice-gathering-status-label, #ice-status-label, #peer-status-label, #signaling-status-label, #streaming-status-label {
+          display: none;
+        }
+
+        #ask-button{
+          display: none;
+        }
+
+        .led {
+          width: 5px;
+          height: 5px; 
+          border-radius: 100%;
+          background-color: red;
+        }
+        .ok {
+          background-color: green;
+        }
+        .error {
+          background-color: red;
+        }
+        #status {
+          position: absolute;
+          top: 20px; 
+          left: 20px;
+          display: flex;
+          gap: 5px;
+        }
+        .speak-button {
+          width: 100px;
+          height: 100px;
+          border-radius: 100%; 
+          z-index: 999999999;
+          position: fixed; 
+          bottom: 40px;
+          right: 0px;
+          left: 0px; 
+          margin-right: auto; 
+          margin-left: auto; 
+        	box-shadow:inset 0px 1px 0px 0px #ffffff;
+        	background:linear-gradient(to bottom, #f9f9f9 5%, #e9e9e9 100%);
+        	background-color:#f9f9f9;
+        	border: 1px solid #dcdcdc;
+        	cursor: pointer;
+        	color: #666666;
+        	font-family:Arial;
+        	font-size:15px;
+        	font-weight:bold;
+        	padding:6px 24px;
+        	text-decoration:none;
+        	text-shadow:0px 1px 0px #ffffff; 
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .speak-button img {
+          width: 40px;
+        }
+        #transcription-box {
+          border: none;
+          outline: none;
+          font-size: 15px;
+          text-align: center;
+          position: fixed;
+          bottom: 250px;
+          right: 0px;
+          left: 0px; 
+          margin-right: auto; 
+          margin-left: auto;
+          background: transparent;
+          color: black;
+          pointer-events: none;
+        }
+        #response-text{
+          font-size: 15px;
+          color: black;
+          display: none;
+        }
+        #text-panel {
+          margin-top: 120px;
+        }
+        #bot_panel{
+          position: relative;
+        }
+        #bot_image{
+          position: absolute;
+          top: 0;
+          right: 0px;
+          left: 0px; 
+          margin-right: auto; 
+          margin-left: auto; 
+          width: 100%;
+        }
+        #talk-video{
+          position: absolute;
+          top: 0;
+          right: 0px;
+          left: 0px; 
+          margin-right: auto; 
+          margin-left: auto; 
+          width: 100%;
+        }
+
+.lds-ripple {
+  display: inline-block;
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+.lds-ripple div {
+  position: absolute;
+  border: 4px solid #fff;
+  opacity: 1;
+  border-radius: 50%;
+  animation: lds-ripple 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+.lds-ripple div:nth-child(2) {
+  animation-delay: -0.5s;
+}
+@keyframes lds-ripple {
+  0% {
+    top: 36px;
+    left: 36px;
+    width: 0;
+    height: 0;
+    opacity: 0;
+  }
+  4.9% {
+    top: 36px;
+    left: 36px;
+    width: 0;
+    height: 0;
+    opacity: 0;
+  }
+  5% {
+    top: 36px;
+    left: 36px;
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  100% {
+    top: 0px;
+    left: 0px;
+    width: 72px;
+    height: 72px;
+    opacity: 0;
+  }
+}
+      
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/typeit@8.7.1/dist/index.umd.js"></script>
+</head>
+<body>
+    <div class="container text-center mt-5">
+        <div class="row">
+            <div class="col-12 col-md-6 col-xl-4 mx-auto">
+                <form>
+                    <div class="form-group d-flex justify-content-between">
+                        <button type="button" class="speak-button" id="record-button">
+                          <img src="https://img.icons8.com/ios/100/microphone.png" alt="microphone"/>
+                        </button>
+                        <button type="button" class="btn btn-primary" style="width:48%" id="ask-button">Ask</button>
+                    </div>
+
+
+                </form>
+                <div class="audio-player">
+                    <audio id="audio-element"></audio>
+                </div>
+
+                <div id="content">
+                  <!-- added "id=video-wrapper" -->
+                  <div id="video-wrapper">
+                    <div id="bot_panel">
+                      <img id="bot_image"/>
+                      <video id="talk-video" autoplay></video>
+                    </div>
+                    <div id="status">
+                      <div id="ice-gathering-status-label"></div>
+                      <div id="ice-gathering-status-led" class="led"></div>
+                      <div id="ice-status-led" class="led"></div>
+                      <div id="ice-status-label"></div>
+                      <div id="peer-status-led" class="led"></div>
+                      <div id="peer-status-label"></div>
+                      <div id="signaling-status-led" class="led"></div>
+                      <div id="signaling-status-label"></div>
+                      <div id="streaming-status-label"></div>
+                    </div>
+                  </div>
+                                    
+                  <div id="text-panel" class="form-group mb-3">
+                    <textarea id="transcription-box" class="form-control" rows="3" placeholder="Ask me anything."></textarea>
+                    <div class="response">
+                      <p id="response-text"></p>
+                    </div>
+                  </div>
+                  
+                  <!-- added div#buttons -->
+                  <div id="buttons">
+                    <button id="connect-button" type="button">Connect</button>
+                    <button id="talk-button" type="button">Start</button>
+                    <button id="destroy-button" type="button">Destroy</button>
+                  </div>
+            
+                  <!-- added div#status -->
+
+              
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+    const BOT_IMAGE = "https://res.cloudinary.com/dfdk4g2pj/image/upload/v1688984309/0_0_vnhwxu.png"
+
+    const currentResponse = {
+      replay: null,
+      tone: null,
+      intensity: null
+    }
+
+    const DID_API = {
+    "key": "c2hhdml0aW1pbmZvQGdtYWlsLmNvbQ:huHoT1wiKPNz0nOqkIBfZ",
+    "url": "https://api.d-id.com"
+    }
+      
+    const RTCPeerConnection = (
+      window.RTCPeerConnection ||
+      window.webkitRTCPeerConnection ||
+      window.mozRTCPeerConnection
+    ).bind(window);
+    
+    let peerConnection;
+    let streamId;
+    let sessionId;
+    let sessionClientAnswer;
+    
+    let statsIntervalId;
+    let videoIsPlaying;
+    let lastBytesReceived;
+    
+    const talkVideo = document.getElementById('talk-video');
+    talkVideo.setAttribute('playsinline', '');
+    const peerStatusLabel = document.getElementById('peer-status-label');
+    const peerStatusLed = document.getElementById('peer-status-led');
+    const iceStatusLabel = document.getElementById('ice-status-label');
+    const iceStatusLed = document.getElementById('ice-status-led');
+    const iceGatheringStatusLabel = document.getElementById('ice-gathering-status-label');
+    const iceGatheringStatusLed = document.getElementById('ice-gathering-status-led');
+    const signalingStatusLabel = document.getElementById('signaling-status-label');
+    const signalingStatusLed = document.getElementById('signaling-status-led');
+    const streamingStatusLabel = document.getElementById('streaming-status-label');
+    const streamingStatusLed = document.getElementById('streaming-status-led');
+    const connectButton = document.getElementById('connect-button');
+      
+    connectButton.onclick = async () => {
+      if (peerConnection && peerConnection.connectionState === 'connected') {
+        return;
+      }
+    
+      stopAllStreams();
+      closePC();
+    
+      const sessionResponse = await fetchWithRetries(`${DID_API.url}/talks/streams`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${DID_API.key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source_url: BOT_IMAGE,
+        }),
+      });
+    
+      const { id: newStreamId, offer, ice_servers: iceServers, session_id: newSessionId } = await sessionResponse.json();
+      streamId = newStreamId;
+      sessionId = newSessionId;
+    
+      try {
+        sessionClientAnswer = await createPeerConnection(offer, iceServers);
+      } catch (e) {
+        console.log('error during streaming setup', e);
+        stopAllStreams();
+        closePC();
+        return;
+      }
+    
+      const sdpResponse = await fetch(`${DID_API.url}/talks/streams/${streamId}/sdp`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${DID_API.key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          answer: sessionClientAnswer,
+          session_id: sessionId,
+        }),
+      });
+    };
+
+const talkButton = document.getElementById('talk-button');
+talkButton.onclick = async () => {
+  console.log(currentResponse)
+  // connectionState not supported in firefox
+  if (peerConnection?.signalingState === 'stable' || peerConnection?.iceConnectionState === 'connected') {
+    const talkResponse = await fetchWithRetries(`${DID_API.url}/talks/streams/${streamId}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${DID_API.key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        script: {
+          "type": "text",
+          "input": currentResponse.replay
+        },
+        driver_url: 'bank://lively/',
+        config: {
+          stitch: true,
+          driver_expressions: {
+            expressions: [
+              {
+                start_frame: 0,
+                expression: currentResponse.tone,
+                intensity: currentResponse.intensity
+              }
+            ]
+          }          
+        },
+        session_id: sessionId,
+      }),
+    });
+  }
+};
+
+const destroyButton = document.getElementById('destroy-button');
+destroyButton.onclick = async () => {
+  await fetch(`${DID_API.url}/talks/streams/${streamId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Basic ${DID_API.key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+
+  stopAllStreams();
+  closePC();
+};
+
+function onIceGatheringStateChange() {
+  iceGatheringStatusLabel.innerText = peerConnection.iceGatheringState;
+  if (peerConnection.iceGatheringState === 'complete') {
+    iceGatheringStatusLed.classList.add('ok')
+    iceGatheringStatusLed.classList.remove('error')
+  } else {
+    iceGatheringStatusLed.classList.add('error')
+    iceGatheringStatusLed.classList.remove('ok')    
+  }
+  iceGatheringStatusLabel.className = 'iceGatheringState-' + peerConnection.iceGatheringState;
+}
+function onIceCandidate(event) {
+  console.log('onIceCandidate', event);
+  if (event.candidate) {
+    const { candidate, sdpMid, sdpMLineIndex } = event.candidate;
+
+    fetch(`${DID_API.url}/talks/streams/${streamId}/ice`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${DID_API.key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        candidate,
+        sdpMid,
+        sdpMLineIndex,
+        session_id: sessionId,
+      }),
+    });
+  }
+}
+function onIceConnectionStateChange() {
+  iceStatusLabel.innerText = peerConnection.iceConnectionState;
+  iceStatusLabel.className = 'iceConnectionState-' + peerConnection.iceConnectionState;
+  if (peerConnection.iceConnectionState === 'connected') {
+    iceStatusLed.classList.add('ok')
+    iceStatusLed.classList.remove('error')
+  } else {
+    iceStatusLed.classList.add('error')
+    iceStatusLed.classList.remove('ok')    
+  }  
+  if (peerConnection.iceConnectionState === 'failed' || peerConnection.iceConnectionState === 'closed') {
+    stopAllStreams();
+    closePC();
+  }
+}
+function onConnectionStateChange() {
+  // not supported in firefox
+  peerStatusLabel.innerText = peerConnection.connectionState;
+  peerStatusLabel.className = 'peerConnectionState-' + peerConnection.connectionState;
+  if (peerConnection.connectionState === 'connected') {
+    peerStatusLed.classList.add('ok')
+    peerStatusLed.classList.remove('error')
+  } else {
+    peerStatusLed.classList.add('error')
+    peerStatusLed.classList.remove('ok')    
+  } 
+}
+function onSignalingStateChange() {
+  signalingStatusLabel.innerText = peerConnection.signalingState;
+  signalingStatusLabel.className = 'signalingState-' + peerConnection.signalingState;
+  if (peerConnection.signalingState === 'stable') {
+    signalingStatusLed.classList.add('ok')
+    signalingStatusLed.classList.remove('error')
+  } else {
+    signalingStatusLed.classList.add('error')
+    signalingStatusLed.classList.remove('ok')    
+  }   
+}
+
+function onVideoStatusChange(videoIsPlaying, stream) {
+  let status;
+  if (videoIsPlaying) {
+    status = 'streaming';
+    const remoteStream = stream;
+    setVideoElement(remoteStream);
+  } else {
+    status = 'empty';
+    playIdleVideo();
+  }
+  streamingStatusLabel.innerText = status;
+  streamingStatusLabel.className = 'streamingState-' + status;
+}
+
+function onTrack(event) {
+  /**
+   * The following code is designed to provide information about wether currently there is data
+   * that's being streamed - It does so by periodically looking for changes in total stream data size
+   *
+   * This information in our case is used in order to show idle video while no talk is streaming.
+   */
+
+  if (!event.track) return;
+
+  statsIntervalId = setInterval(async () => {
+    const stats = await peerConnection.getStats(event.track);
+    stats.forEach((report) => {
+      if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+        const videoStatusChanged = videoIsPlaying !== report.bytesReceived > lastBytesReceived;
+
+        if (videoStatusChanged) {
+          videoIsPlaying = report.bytesReceived > lastBytesReceived;
+          onVideoStatusChange(videoIsPlaying, event.streams[0]);
+        }
+        lastBytesReceived = report.bytesReceived;
+      }
+    });
+  }, 500);
+}
+
+async function createPeerConnection(offer, iceServers) {
+  if (!peerConnection) {
+    peerConnection = new RTCPeerConnection({ iceServers });
+    peerConnection.addEventListener('icegatheringstatechange', onIceGatheringStateChange, true);
+    peerConnection.addEventListener('icecandidate', onIceCandidate, true);
+    peerConnection.addEventListener('iceconnectionstatechange', onIceConnectionStateChange, true);
+    peerConnection.addEventListener('connectionstatechange', onConnectionStateChange, true);
+    peerConnection.addEventListener('signalingstatechange', onSignalingStateChange, true);
+    peerConnection.addEventListener('track', onTrack, true);
+  }
+
+  await peerConnection.setRemoteDescription(offer);
+  console.log('set remote sdp OK');
+
+  const sessionClientAnswer = await peerConnection.createAnswer();
+  console.log('create local sdp OK');
+
+  await peerConnection.setLocalDescription(sessionClientAnswer);
+  console.log('set local sdp OK');
+
+  return sessionClientAnswer;
+}
+
+function setVideoElement(stream) {
+  if (!stream) return;
+  talkVideo.srcObject = stream;
+  talkVideo.loop = false;
+  //Spinner hide
+
+  // safari hotfix
+  if (talkVideo.paused) {
+    talkVideo
+      .play()
+      .then((_) => {})
+      .catch((e) => {});
+  }
+}
+
+function playIdleVideo() {
+  talkVideo.srcObject = undefined;
+  talkVideo.src = 'or_idle.mp4';
+  talkVideo.loop = true;
+}
+
+function stopAllStreams() {
+  if (talkVideo.srcObject) {
+    console.log('stopping video streams');
+    talkVideo.srcObject.getTracks().forEach((track) => track.stop());
+    talkVideo.srcObject = null;
+  }
+}
+
+function closePC(pc = peerConnection) {
+  if (!pc) return;
+  console.log('stopping peer connection');
+  pc.close();
+  pc.removeEventListener('icegatheringstatechange', onIceGatheringStateChange, true);
+  pc.removeEventListener('icecandidate', onIceCandidate, true);
+  pc.removeEventListener('iceconnectionstatechange', onIceConnectionStateChange, true);
+  pc.removeEventListener('connectionstatechange', onConnectionStateChange, true);
+  pc.removeEventListener('signalingstatechange', onSignalingStateChange, true);
+  pc.removeEventListener('track', onTrack, true);
+  clearInterval(statsIntervalId);
+  iceGatheringStatusLabel.innerText = '';
+  signalingStatusLabel.innerText = '';
+  iceStatusLabel.innerText = '';
+  peerStatusLabel.innerText = '';
+  console.log('stopped peer connection');
+  if (pc === peerConnection) {
+    peerConnection = null;
+  }
+}
+
+const maxRetryCount = 3;
+const maxDelaySec = 4;
+
+async function fetchWithRetries(url, options, retries = 1) {
+  try {
+    return await fetch(url, options);
+  } catch (err) {
+    if (retries <= maxRetryCount) {
+      const delay = Math.min(Math.pow(2, retries) / 4 + Math.random(), maxDelaySec) * 1000;
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      console.log(`Request failed, retrying ${retries}/${maxRetryCount}. Error ${err}`);
+      return fetchWithRetries(url, options, retries + 1);
+    } else {
+      throw new Error(`Max retries exceeded. error: ${err}`);
+    }
+  }
+}
+
+      $(document).ready(() => {
+        document.getElementById('bot_image').src = BOT_IMAGE;
+        const connectButton = document.getElementById('connect-button');
+        connectButton.click()
+      })
+      
+    </script>
+      <script>
+        $(document).ready(() => {
+
+            // Get references to HTML elements
+            const recordButton = $('#record-button');
+            const transcriptionBox = $('#transcription-box');
+            const askButton = $('#ask-button');
+            const audioElement = $('#audio-element')[0];
+            const conversation = [];
+
+            // Helper methods
+            const disableButton = (btn) => { btn.addClass("loading").prop("disabled", true); }
+            const enableButton = (btn) => { btn.removeClass("loading").prop("disabled", false); }
+
+            // Initialize TypeIt
+            //new TypeIt("#response-text", {
+            //  strings: "How can I help?",
+            //  speed: 40,
+            //  waitUntilVisible: true,
+            //  cursorChar: "▊",
+            //}).go();
+
+            // Ask question and play audio when ask button is clicked
+            askButton.click(() => {
+                disableButton(recordButton);
+                disableButton(askButton);
+                askButton[0].innerHTML = "Thinking...";
+                conversation.push({role: "user", "content": transcriptionBox.val()})
+                const textData = { conversation: conversation };
+                $.ajax({
+                    type: 'POST',
+                    url: '/ask',
+                    data: JSON.stringify(textData),
+                    contentType: 'application/json',
+                    success: (data) => {
+                        //const fileURL = data.audio;
+                        $("#response-text")[0].innerHTML = "";
+                        conversation.push({role: "assistant", "content": data.replay})
+                        new TypeIt("#response-text", {
+                          strings: data.replay,
+                          speed: 39,
+                          waitUntilVisible: false,
+                          cursorChar: "▊",
+                        }).go();
+                        currentResponse.replay = data.replay;
+                        currentResponse.tone = data.tone;
+                        currentResponse.intensity = data.intensity;
+                        const talkButton = document.getElementById('talk-button');
+                        talkButton.click()
+                        enableButton(recordButton);
+                        enableButton(askButton);
+                        askButton[0].innerHTML = "Ask";
+                    }
+                });
+            });
+
+
+            // Initialize MediaRecorder
+            let chunks = [];
+            let recording = false;
+            let mediaRecorder;
+            navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = (event) => {
+                    chunks.push(event.data);
+                };
+                mediaRecorder.onstop = () => {
+                    disableButton(recordButton);
+                    recordButton[0].innerHTML = "Transcribing...";
+                    const audioData = new Blob(chunks, { type: 'audio/wav' });
+                    const formData = new FormData();
+                    formData.append('file', audioData, 'audio.wav');
+                    $.ajax({
+                        type: 'POST',
+                        url: '/transcribe',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
+                        success: (data) => {
+                            transcriptionBox.val(data.text);                           
+                            enableButton(recordButton);
+                            recordButton[0].innerHTML = "Record";
+                            askButton.click();
+                        }
+                    });
+                };
+            });
+
+            // Record audio when record button is clicked
+            recordButton.click(() => {
+                if (recording) {
+                    mediaRecorder.stop();
+                    recording = false;
+                } else {
+                    // spinner on
+                    recordButton[0].innerHTML = "Recording...";
+                    chunks = [];
+                    mediaRecorder.start();
+                    recording = true;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
