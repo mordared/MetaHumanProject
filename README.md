@@ -1,7 +1,3 @@
-Certainly! Here's a README file for your `MetaHuman` repository:
-
----
-
 # MetaHuman Project
 
 Welcome to the MetaHuman project! This application is built with a robust tech stack including Python, Flask, HTML, and the cutting-edge D-ID technology. Dive in to learn more and set up the project on your local environment.
