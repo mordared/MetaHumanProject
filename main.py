@@ -1,9 +1,8 @@
 from flask import Flask, render_template
 import openai
 import os
-
-
-
+import sounddevice as sd
+import soundfile as sf
 
 OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
 openai.api_key = OPENAI_API_KEY
